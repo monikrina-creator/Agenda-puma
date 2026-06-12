@@ -1,0 +1,787 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Agenda Pedidos PUMA · Cencosud París</title>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+  :root {
+    --red: #E24B4A;
+    --red-dark: #A32D2D;
+    --green: #1D9E75;
+    --green-light: #E1F5EE;
+    --green-dark: #0F6E56;
+    --amber: #EF9F27;
+    --amber-light: #FAEEDA;
+    --amber-dark: #854F0B;
+    --blue: #378ADD;
+    --blue-light: #E6F1FB;
+    --blue-dark: #185FA5;
+    --gray-50: #F8F8F7;
+    --gray-100: #F1EFE8;
+    --gray-200: #D3D1C7;
+    --gray-400: #888780;
+    --gray-700: #444441;
+    --gray-900: #1A1A18;
+    --white: #FFFFFF;
+    --radius: 10px;
+    --radius-sm: 6px;
+    --shadow: 0 1px 3px rgba(0,0,0,0.08), 0 1px 2px rgba(0,0,0,0.04);
+    --shadow-md: 0 4px 12px rgba(0,0,0,0.10);
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', system-ui, sans-serif;
+    background: var(--gray-50);
+    color: var(--gray-900);
+    font-size: 13px;
+    line-height: 1.5;
+    min-height: 100vh;
+  }
+
+  /* TOP BAR */
+  .topbar {
+    background: var(--white);
+    border-bottom: 1px solid var(--gray-200);
+    padding: 0 24px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    height: 56px;
+    position: sticky;
+    top: 0;
+    z-index: 100;
+  }
+  .logo { display: flex; align-items: center; gap: 10px; }
+  .logo-mark {
+    width: 28px; height: 28px; border-radius: 6px;
+    background: var(--red); display: flex; align-items: center;
+    justify-content: center;
+  }
+  .logo-mark svg { width: 16px; height: 16px; fill: white; }
+  .logo-name { font-size: 14px; font-weight: 600; color: var(--gray-900); letter-spacing: -.3px; }
+  .logo-client { font-size: 11px; color: var(--gray-400); margin-left: 4px; }
+  .topbar-right { display: flex; align-items: center; gap: 10px; }
+  .update-badge {
+    font-size: 11px; color: var(--gray-400);
+    background: var(--gray-100); padding: 3px 10px;
+    border-radius: 20px; border: 1px solid var(--gray-200);
+  }
+
+  /* MAIN LAYOUT */
+  .main { max-width: 1280px; margin: 0 auto; padding: 24px; }
+
+  /* UPLOAD SECTION */
+  .upload-section {
+    background: var(--white);
+    border: 1px solid var(--gray-200);
+    border-radius: var(--radius);
+    padding: 20px 24px;
+    margin-bottom: 20px;
+    box-shadow: var(--shadow);
+  }
+  .upload-section-title {
+    font-size: 13px; font-weight: 600; color: var(--gray-700);
+    margin-bottom: 14px; display: flex; align-items: center; gap: 8px;
+  }
+  .upload-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 12px; margin-bottom: 14px; }
+  .upload-card {
+    border: 1.5px dashed var(--gray-200);
+    border-radius: var(--radius-sm);
+    padding: 14px;
+    cursor: pointer;
+    transition: all .15s;
+    position: relative;
+    background: var(--gray-50);
+  }
+  .upload-card:hover { border-color: var(--red); background: #FEF7F7; }
+  .upload-card.loaded { border-color: var(--green); border-style: solid; background: var(--green-light); }
+  .upload-card input[type=file] { display: none; }
+  .upload-tag {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: .6px; color: var(--gray-400); margin-bottom: 6px;
+  }
+  .upload-card.loaded .upload-tag { color: var(--green-dark); }
+  .upload-main { font-size: 12px; font-weight: 500; color: var(--gray-700); margin-bottom: 3px; }
+  .upload-sub { font-size: 11px; color: var(--gray-400); }
+  .upload-filename { font-size: 11px; color: var(--green-dark); font-weight: 500; margin-top: 4px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .upload-check {
+    position: absolute; top: 10px; right: 10px;
+    width: 18px; height: 18px; border-radius: 50%;
+    background: var(--green); display: none;
+    align-items: center; justify-content: center;
+  }
+  .upload-card.loaded .upload-check { display: flex; }
+  .upload-check svg { width: 10px; height: 10px; stroke: white; fill: none; stroke-width: 2.5; stroke-linecap: round; stroke-linejoin: round; }
+
+  .btn-process {
+    width: 100%; padding: 10px; font-size: 13px; font-weight: 600;
+    border: none; border-radius: var(--radius-sm); cursor: pointer;
+    background: var(--red); color: white; transition: all .15s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+  }
+  .btn-process:hover:not(:disabled) { background: var(--red-dark); }
+  .btn-process:disabled { opacity: .4; cursor: not-allowed; }
+  .btn-process svg { width: 14px; height: 14px; stroke: white; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  .process-log {
+    margin-top: 10px; font-size: 11px; color: var(--green-dark);
+    background: var(--green-light); border-radius: var(--radius-sm);
+    padding: 8px 12px; display: none;
+  }
+
+  /* KPI CARDS */
+  .kpi-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 12px; margin-bottom: 20px; }
+  .kpi {
+    background: var(--white); border: 1px solid var(--gray-200);
+    border-radius: var(--radius); padding: 16px;
+    box-shadow: var(--shadow);
+  }
+  .kpi-label { font-size: 10px; text-transform: uppercase; letter-spacing: .5px; color: var(--gray-400); font-weight: 600; margin-bottom: 6px; }
+  .kpi-value { font-size: 22px; font-weight: 700; color: var(--gray-900); letter-spacing: -.5px; }
+  .kpi-sub { font-size: 10px; color: var(--gray-400); margin-top: 2px; }
+  .kpi.accent { border-top: 3px solid var(--red); }
+
+  /* TABS */
+  .tabs { display: flex; gap: 2px; margin-bottom: 16px; background: var(--gray-100); padding: 3px; border-radius: var(--radius-sm); width: fit-content; }
+  .tab-btn {
+    padding: 6px 16px; font-size: 12px; font-weight: 500;
+    border: none; background: transparent; border-radius: 5px;
+    cursor: pointer; color: var(--gray-400); transition: all .15s;
+  }
+  .tab-btn.active { background: var(--white); color: var(--gray-900); box-shadow: var(--shadow); }
+
+  /* TABLE CARD */
+  .table-card {
+    background: var(--white); border: 1px solid var(--gray-200);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .table-card-head {
+    padding: 14px 18px; display: flex; align-items: center;
+    justify-content: space-between; border-bottom: 1px solid var(--gray-100);
+  }
+  .table-card-title { font-size: 13px; font-weight: 600; color: var(--gray-900); }
+  .count-badge {
+    font-size: 11px; background: var(--gray-100); color: var(--gray-400);
+    padding: 3px 10px; border-radius: 20px; border: 1px solid var(--gray-200);
+  }
+
+  .filters {
+    padding: 10px 18px; display: flex; gap: 8px; flex-wrap: wrap;
+    border-bottom: 1px solid var(--gray-100); background: var(--gray-50);
+    align-items: center;
+  }
+  .filters input, .filters select {
+    font-size: 11px; padding: 5px 10px; border-radius: var(--radius-sm);
+    border: 1px solid var(--gray-200); background: var(--white);
+    color: var(--gray-900); outline: none;
+  }
+  .filters input:focus, .filters select:focus { border-color: var(--red); }
+  .filter-label { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: .4px; color: var(--gray-400); }
+
+  .tbl-wrap { overflow-x: auto; }
+  table { width: 100%; border-collapse: collapse; }
+  thead th {
+    padding: 9px 12px; text-align: left; font-size: 10px; font-weight: 600;
+    text-transform: uppercase; letter-spacing: .4px; color: var(--gray-400);
+    border-bottom: 1px solid var(--gray-200); background: var(--gray-50);
+    white-space: nowrap;
+  }
+  tbody td {
+    padding: 9px 12px; border-bottom: 1px solid var(--gray-100);
+    color: var(--gray-900); white-space: nowrap; font-size: 12px;
+  }
+  tbody tr:last-child td { border-bottom: none; }
+  tbody tr:hover td { background: #FEF7F7; }
+  tbody tr.vencida td { background: #FFF8F0; }
+  tbody tr.facturada td { background: #F0FBF6; }
+
+  .pill {
+    display: inline-block; font-size: 10px; padding: 2px 8px;
+    border-radius: 10px; font-weight: 600;
+  }
+  .pill-green { background: var(--green-light); color: var(--green-dark); }
+  .pill-amber { background: var(--amber-light); color: var(--amber-dark); }
+  .pill-blue { background: var(--blue-light); color: var(--blue-dark); }
+  .pill-red { background: #FCEBEB; color: var(--red-dark); }
+  .pill-gray { background: var(--gray-100); color: var(--gray-400); }
+
+  .table-foot {
+    padding: 10px 18px; display: flex; gap: 8px;
+    border-top: 1px solid var(--gray-100); justify-content: flex-end;
+  }
+  .btn-export {
+    padding: 6px 14px; font-size: 11px; font-weight: 600;
+    border-radius: var(--radius-sm); cursor: pointer;
+    border: 1px solid var(--gray-200); background: var(--white);
+    color: var(--gray-700); display: flex; align-items: center; gap: 6px;
+    transition: all .15s;
+  }
+  .btn-export:hover { background: var(--gray-100); }
+  .btn-export svg { width: 13px; height: 13px; stroke: currentColor; fill: none; stroke-width: 2; stroke-linecap: round; stroke-linejoin: round; }
+
+  /* DEPTO / SEMANA VIEWS */
+  .sec { display: none; }
+  .sec.active { display: block; }
+
+  .depto-grid { display: grid; grid-template-columns: repeat(2, 1fr); gap: 12px; }
+  .depto-card {
+    background: var(--white); border: 1px solid var(--gray-200);
+    border-radius: var(--radius); padding: 18px; box-shadow: var(--shadow);
+  }
+  .depto-name { font-size: 13px; font-weight: 700; color: var(--gray-900); margin-bottom: 12px; display: flex; align-items: center; justify-content: space-between; }
+  .depto-row { display: flex; justify-content: space-between; font-size: 11px; color: var(--gray-400); margin-bottom: 5px; }
+  .depto-val { color: var(--gray-900); font-weight: 600; }
+  .bar { height: 5px; background: var(--gray-100); border-radius: 3px; margin-top: 10px; overflow: hidden; }
+  .bar-fill { height: 100%; background: var(--red); border-radius: 3px; transition: width .5s ease; }
+
+  .semana-table-card {
+    background: var(--white); border: 1px solid var(--gray-200);
+    border-radius: var(--radius); box-shadow: var(--shadow); overflow: hidden;
+  }
+  .alert-banner {
+    background: var(--amber-light); border-left: 4px solid var(--amber);
+    border-radius: 0 var(--radius-sm) var(--radius-sm) 0;
+    padding: 10px 14px; margin-bottom: 14px;
+    font-size: 12px; color: var(--amber-dark);
+    display: flex; align-items: center; gap: 8px;
+  }
+  .alert-banner svg { width: 15px; height: 15px; stroke: var(--amber); fill: none; stroke-width: 2; flex-shrink: 0; }
+
+  /* EMPTY STATE */
+  .empty {
+    padding: 48px 24px; text-align: center; color: var(--gray-400);
+  }
+  .empty-icon { font-size: 32px; margin-bottom: 10px; }
+  .empty-title { font-size: 14px; font-weight: 600; color: var(--gray-700); margin-bottom: 4px; }
+  .empty-sub { font-size: 12px; }
+
+  /* RESPONSIVE */
+  @media (max-width: 900px) {
+    .kpi-grid { grid-template-columns: repeat(2, 1fr); }
+    .upload-grid { grid-template-columns: 1fr; }
+    .depto-grid { grid-template-columns: 1fr; }
+  }
+  @media (max-width: 600px) {
+    .main { padding: 12px; }
+    .kpi-grid { grid-template-columns: 1fr 1fr; }
+  }
+</style>
+</head>
+<body>
+
+<div class="topbar">
+  <div class="logo">
+    <div class="logo-mark">
+      <svg viewBox="0 0 24 24"><path d="M4 6h16M4 12h16M4 18h16"/></svg>
+    </div>
+    <span class="logo-name">PUMA Chile</span>
+    <span class="logo-client">· Agenda Cencosud París</span>
+  </div>
+  <div class="topbar-right">
+    <span class="update-badge" id="update-badge">Sin datos</span>
+  </div>
+</div>
+
+<div class="main">
+
+  <!-- UPLOAD -->
+  <div class="upload-section">
+    <div class="upload-section-title">
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M17 8l-5-5-5 5M12 3v12"/></svg>
+      Carga de archivos
+    </div>
+    <div class="upload-grid">
+
+      <div class="upload-card" id="card-ol" onclick="document.getElementById('file-ol').click()">
+        <div class="upload-tag">Archivo 1 — Órdenes Liberadas</div>
+        <div class="upload-main">OC · Departamento · PD · Monto</div>
+        <div class="upload-sub">ordenes_liberadas.xlsx</div>
+        <div class="upload-filename" id="name-ol"></div>
+        <div class="upload-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-ol" accept=".xlsx,.xls" onchange="handleFile(this,'ol')">
+      </div>
+
+      <div class="upload-card" id="card-so" onclick="document.getElementById('file-so').click()">
+        <div class="upload-tag">Archivo 2 — SO Track</div>
+        <div class="upload-main">Cliente · Monto SAP · Factura · Estado</div>
+        <div class="upload-sub">SO_Track.xlsx</div>
+        <div class="upload-filename" id="name-so"></div>
+        <div class="upload-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-so" accept=".xlsx,.xls" onchange="handleFile(this,'so')">
+      </div>
+
+      <div class="upload-card" id="card-pr" onclick="document.getElementById('file-pr').click()">
+        <div class="upload-tag">Archivo 3 — Pronóstico (opcional)</div>
+        <div class="upload-main">Fecha despacho · Picking</div>
+        <div class="upload-sub">Pronostico_Junio.xlsx</div>
+        <div class="upload-filename" id="name-pr"></div>
+        <div class="upload-check"><svg viewBox="0 0 24 24"><polyline points="20 6 9 17 4 12"/></svg></div>
+        <input type="file" id="file-pr" accept=".xlsx,.xls" onchange="handleFile(this,'pr')">
+      </div>
+
+    </div>
+
+    <button class="btn-process" id="btn-process" disabled onclick="processFiles()">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><polyline points="12 6 12 12 16 14"/></svg>
+      Procesar y generar agenda
+    </button>
+    <div class="process-log" id="process-log"></div>
+  </div>
+
+  <!-- KPIs -->
+  <div class="kpi-grid" id="kpi-grid" style="display:none">
+    <div class="kpi accent"><div class="kpi-label">Total OC</div><div class="kpi-value" id="k-oc">—</div><div class="kpi-sub">Cencosud París</div></div>
+    <div class="kpi"><div class="kpi-label">Monto ingresado</div><div class="kpi-value" id="k-monto" style="font-size:16px">—</div><div class="kpi-sub">Total OL</div></div>
+    <div class="kpi"><div class="kpi-label">Monto asignado SAP</div><div class="kpi-value" id="k-asign" style="font-size:16px">—</div><div class="kpi-sub">Confirmado en sistema</div></div>
+    <div class="kpi"><div class="kpi-label">Monto facturado</div><div class="kpi-value" id="k-fact" style="font-size:16px">—</div><div class="kpi-sub">Facturas emitidas</div></div>
+    <div class="kpi"><div class="kpi-label">Próximo despacho</div><div class="kpi-value" id="k-prox" style="font-size:16px">—</div><div class="kpi-sub" id="k-prox-oc">—</div></div>
+  </div>
+
+  <!-- TABS -->
+  <div id="tabs-area" style="display:none">
+    <div class="tabs">
+      <button class="tab-btn active" onclick="switchTab('agenda',this)">Agenda</button>
+      <button class="tab-btn" onclick="switchTab('depto',this)">Por departamento</button>
+      <button class="tab-btn" onclick="switchTab('semanas',this)">Por fecha despacho</button>
+    </div>
+
+    <!-- TAB AGENDA -->
+    <div id="sec-agenda" class="sec active">
+      <div class="table-card">
+        <div class="table-card-head">
+          <span class="table-card-title">Pedidos activos — Cencosud París</span>
+          <span class="count-badge" id="row-count">0 registros</span>
+        </div>
+        <div class="filters">
+          <span class="filter-label">Filtrar:</span>
+          <input type="text" placeholder="Buscar OC..." id="f-oc" oninput="render()" style="width:120px">
+          <select id="f-depto" onchange="render()"><option value="">Todos los deptos</option></select>
+          <select id="f-pd" onchange="render()"><option value="">Todos los PD</option></select>
+          <select id="f-sap" onchange="render()">
+            <option value="">Estado SAP</option>
+            <option value="A">A — Activo</option>
+            <option value="B">B — Parcial</option>
+            <option value="C">C — Completo</option>
+          </select>
+          <select id="f-fecha" onchange="render()"><option value="">Todas las fechas</option></select>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>OC</th>
+              <th>Departamento</th>
+              <th>PD</th>
+              <th>Fecha despacho</th>
+              <th>Monto ingresado</th>
+              <th>Unid OL</th>
+              <th>Unid asign SAP</th>
+              <th>Monto asign SAP</th>
+              <th>Monto facturado</th>
+              <th>N° Factura</th>
+              <th>Estado SAP</th>
+              <th>Estado OL</th>
+            </tr></thead>
+            <tbody id="tbody">
+              <tr><td colspan="12">
+                <div class="empty">
+                  <div class="empty-icon">📋</div>
+                  <div class="empty-title">Carga los archivos para ver la agenda</div>
+                  <div class="empty-sub">Sube los 3 Excel y haz clic en "Procesar"</div>
+                </div>
+              </td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="table-foot">
+          <button class="btn-export" onclick="exportCSV()">
+            <svg viewBox="0 0 24 24"><path d="M21 15v4a2 2 0 01-2 2H5a2 2 0 01-2-2v-4M7 10l5 5 5-5M12 15V3"/></svg>
+            Exportar CSV
+          </button>
+          <button class="btn-export" onclick="exportExcel()">
+            <svg viewBox="0 0 24 24"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+            Exportar Excel
+          </button>
+        </div>
+      </div>
+    </div>
+
+    <!-- TAB DEPTO -->
+    <div id="sec-depto" class="sec">
+      <div class="depto-grid" id="depto-grid"></div>
+    </div>
+
+    <!-- TAB SEMANAS -->
+    <div id="sec-semanas" class="sec">
+      <div id="alertas-container"></div>
+      <div class="semana-table-card">
+        <div class="table-card-head">
+          <span class="table-card-title">Fechas de despacho consolidadas</span>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr>
+              <th>Fecha despacho</th>
+              <th>N° OC</th>
+              <th>OC involucradas</th>
+              <th>Departamentos</th>
+              <th>Monto total</th>
+              <th>Unidades OL</th>
+              <th>Estado</th>
+            </tr></thead>
+            <tbody id="semana-tbody"></tbody>
+          </table>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /tabs-area -->
+
+</div><!-- /main -->
+
+<script>
+// ─── STATE ───────────────────────────────────────────────
+let files = { ol: null, so: null, pr: null };
+let allRows = [];
+let filtered = [];
+const TODAY = new Date().toISOString().split('T')[0];
+
+// ─── FILE HANDLING ────────────────────────────────────────
+function handleFile(input, key) {
+  const f = input.files[0];
+  if (!f) return;
+  files[key] = f;
+  document.getElementById('card-' + key).classList.add('loaded');
+  document.getElementById('name-' + key).textContent = f.name;
+  const loaded = Object.values(files).filter(Boolean).length;
+  const btn = document.getElementById('btn-process');
+  btn.disabled = loaded < 2;
+  if (loaded >= 2) btn.querySelector('svg').style.display = '';
+}
+
+function readExcel(file) {
+  return new Promise(resolve => {
+    const r = new FileReader();
+    r.onload = e => {
+      try {
+        const wb = XLSX.read(e.target.result, { type: 'binary', cellDates: true });
+        const ws = wb.Sheets[wb.SheetNames[0]];
+        resolve(XLSX.utils.sheet_to_json(ws, { defval: '' }));
+      } catch { resolve([]); }
+    };
+    r.readAsBinaryString(file);
+  });
+}
+
+// ─── PROCESS ──────────────────────────────────────────────
+async function processFiles() {
+  const log = document.getElementById('process-log');
+  const btn = document.getElementById('btn-process');
+  btn.disabled = true;
+  log.style.display = 'block';
+  log.textContent = '⏳ Leyendo archivos...';
+
+  const [olData, soData] = await Promise.all([
+    files.ol ? readExcel(files.ol) : Promise.resolve([]),
+    files.so ? readExcel(files.so) : Promise.resolve([])
+  ]);
+
+  log.textContent = `✓ Órdenes Liberadas: ${olData.length} filas · SO Track: ${soData.length} filas`;
+
+  // Agrupar SO Track por PO Number
+  const soMap = {};
+  soData.forEach(r => {
+    const po = String(r['PO Number'] || '').split('.')[0].trim();
+    if (!po) return;
+    if (!soMap[po]) {
+      soMap[po] = {
+        cliente: r['Sold to Name'] || '',
+        assignedQty: 0, assignedAmt: 0,
+        invoicedQty: 0, invoicedAmt: 0,
+        facturas: new Set(),
+        deliveryDate: r['Delivery Date'] || '',
+        status: r['Overall Status'] || ''
+      };
+    }
+    soMap[po].assignedQty += Number(r['Assigned Quantity']) || 0;
+    soMap[po].assignedAmt += Number(r['Assigned Amount']) || 0;
+    soMap[po].invoicedQty += Number(r['Invoiced Quantity']) || 0;
+    soMap[po].invoicedAmt += Number(r['Invoiced Amount']) || 0;
+    if (r['Invoice Number'] && r['Invoice Number'] !== '') {
+      const inv = String(r['Invoice Number']).split('.')[0];
+      soMap[po].facturas.add(inv);
+    }
+    if (!soMap[po].deliveryDate && r['Delivery Date']) soMap[po].deliveryDate = r['Delivery Date'];
+    if (r['Overall Status']) soMap[po].status = r['Overall Status'];
+  });
+
+  // Construir filas consolidadas
+  allRows = olData.map(r => {
+    const oc = String(r['Num Order'] || r['OC'] || r['N° OC'] || '').trim();
+    const so = soMap[oc] || {};
+
+    let fechaDespacho = '';
+    if (so.deliveryDate) {
+      const d = so.deliveryDate instanceof Date ? so.deliveryDate : new Date(so.deliveryDate);
+      if (!isNaN(d)) fechaDespacho = d.toISOString().split('T')[0];
+    }
+
+    return {
+      OC: oc,
+      Cliente: r['Cliente'] || so.cliente || 'PARIS',
+      Departamento: r['Departamento'] || r['Depto'] || '—',
+      PD: r['PD'] || '—',
+      Monto_Ingresado: montoNum(r['Total'] || r['Monto'] || 0),
+      Unidades_OL: Number(r['Unidades'] || 0),
+      Estado_OL: r['Status'] || r['Estado'] || '—',
+      Fecha_Req: fmtDateRaw(r['Fecha Req'] || r['Fecha_Req']),
+      Unid_Asignadas: so.assignedQty || 0,
+      Monto_Asignado: so.assignedAmt || 0,
+      Unid_Facturadas: so.invoicedQty || 0,
+      Monto_Facturado: so.invoicedAmt || 0,
+      Factura: so.facturas ? [...so.facturas].filter(Boolean).join(', ') : '',
+      Fecha_Despacho: fechaDespacho,
+      Estado_SAP: so.status || '—'
+    };
+  }).filter(r => r.OC);
+
+  log.textContent = `✅ ${allRows.length} OC consolidadas correctamente. Cruce: Num Order ↔ PO Number`;
+  btn.disabled = false;
+
+  buildFilters();
+  buildKPIs();
+  render();
+  buildDepto();
+  buildSemanas();
+  document.getElementById('kpi-grid').style.display = 'grid';
+  document.getElementById('tabs-area').style.display = 'block';
+
+  const now = new Date();
+  document.getElementById('update-badge').textContent =
+    'Actualizado ' + now.toLocaleDateString('es-CL') + ' ' + now.toLocaleTimeString('es-CL', {hour:'2-digit',minute:'2-digit'});
+}
+
+// ─── HELPERS ──────────────────────────────────────────────
+function montoNum(v) {
+  if (typeof v === 'number') return v;
+  return parseInt(String(v).replace(/[^0-9]/g, '')) || 0;
+}
+function fmt(n) { return Math.round(n).toLocaleString('es-CL'); }
+function fmtM(n) { return '$' + fmt(n); }
+function fmtDateRaw(v) {
+  if (!v) return '';
+  if (v instanceof Date) return v.toISOString().split('T')[0];
+  const d = new Date(v);
+  return isNaN(d) ? String(v) : d.toISOString().split('T')[0];
+}
+function fmtDateDisplay(s) {
+  if (!s) return '—';
+  const [y, m, d] = s.split('-');
+  return `${d}/${m}/${y}`;
+}
+function sapColor(s) {
+  if (s === 'A') return 'pill-amber';
+  if (s === 'B') return 'pill-blue';
+  if (s === 'C') return 'pill-green';
+  return 'pill-gray';
+}
+function sapLabel(s) {
+  if (s === 'A') return 'A · Activo';
+  if (s === 'B') return 'B · Parcial';
+  if (s === 'C') return 'C · Completo';
+  return s || '—';
+}
+
+// ─── FILTERS ──────────────────────────────────────────────
+function buildFilters() {
+  const deptos = [...new Set(allRows.map(r => r.Departamento))].sort();
+  const pds = [...new Set(allRows.map(r => r.PD))].sort();
+  const fechas = [...new Set(allRows.map(r => r.Fecha_Despacho).filter(Boolean))].sort();
+
+  const sel1 = document.getElementById('f-depto');
+  const sel2 = document.getElementById('f-pd');
+  const sel3 = document.getElementById('f-fecha');
+  sel1.innerHTML = '<option value="">Todos los deptos</option>';
+  sel2.innerHTML = '<option value="">Todos los PD</option>';
+  sel3.innerHTML = '<option value="">Todas las fechas</option>';
+  deptos.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; sel1.appendChild(o); });
+  pds.forEach(d => { const o = document.createElement('option'); o.value = d; o.textContent = d; sel2.appendChild(o); });
+  fechas.forEach(f => { const o = document.createElement('option'); o.value = f; o.textContent = fmtDateDisplay(f); sel3.appendChild(o); });
+}
+
+// ─── KPIs ─────────────────────────────────────────────────
+function buildKPIs() {
+  document.getElementById('k-oc').textContent = allRows.length;
+  document.getElementById('k-monto').textContent = fmtM(allRows.reduce((s, r) => s + r.Monto_Ingresado, 0));
+  document.getElementById('k-asign').textContent = fmtM(allRows.reduce((s, r) => s + r.Monto_Asignado, 0));
+  document.getElementById('k-fact').textContent = fmtM(allRows.reduce((s, r) => s + r.Monto_Facturado, 0));
+  const prox = allRows.filter(r => r.Fecha_Despacho >= TODAY).sort((a, b) => a.Fecha_Despacho.localeCompare(b.Fecha_Despacho))[0];
+  document.getElementById('k-prox').textContent = prox ? fmtDateDisplay(prox.Fecha_Despacho) : '—';
+  document.getElementById('k-prox-oc').textContent = prox ? prox.OC + ' · ' + prox.Departamento : '—';
+}
+
+// ─── RENDER TABLE ─────────────────────────────────────────
+function render() {
+  const ocF = document.getElementById('f-oc').value.toLowerCase();
+  const dF = document.getElementById('f-depto').value;
+  const pF = document.getElementById('f-pd').value;
+  const sF = document.getElementById('f-sap').value;
+  const fF = document.getElementById('f-fecha').value;
+
+  filtered = allRows.filter(r => {
+    if (ocF && !r.OC.includes(ocF)) return false;
+    if (dF && r.Departamento !== dF) return false;
+    if (pF && r.PD !== pF) return false;
+    if (sF && r.Estado_SAP !== sF) return false;
+    if (fF && r.Fecha_Despacho !== fF) return false;
+    return true;
+  });
+
+  document.getElementById('row-count').textContent = filtered.length + ' registros';
+
+  const rows = filtered.map(r => {
+    const vencida = r.Fecha_Despacho && r.Fecha_Despacho < TODAY && r.Estado_SAP !== 'C';
+    const facturada = r.Monto_Facturado > 0;
+    const cls = vencida ? 'vencida' : facturada ? 'facturada' : '';
+    return `<tr class="${cls}">
+      <td><strong>${r.OC}</strong></td>
+      <td>${r.Departamento}</td>
+      <td>${r.PD}</td>
+      <td>${fmtDateDisplay(r.Fecha_Despacho)}</td>
+      <td>${r.Monto_Ingresado > 0 ? fmtM(r.Monto_Ingresado) : '—'}</td>
+      <td>${r.Unidades_OL > 0 ? fmt(r.Unidades_OL) : '—'}</td>
+      <td>${r.Unid_Asignadas > 0 ? fmt(r.Unid_Asignadas) : '—'}</td>
+      <td>${r.Monto_Asignado > 0 ? fmtM(r.Monto_Asignado) : '—'}</td>
+      <td>${r.Monto_Facturado > 0 ? fmtM(r.Monto_Facturado) : '—'}</td>
+      <td>${r.Factura || '—'}</td>
+      <td><span class="pill ${sapColor(r.Estado_SAP)}">${sapLabel(r.Estado_SAP)}</span></td>
+      <td><span class="pill pill-gray">${r.Estado_OL}</span></td>
+    </tr>`;
+  }).join('');
+
+  document.getElementById('tbody').innerHTML = rows || `
+    <tr><td colspan="12">
+      <div class="empty">
+        <div class="empty-title">Sin resultados</div>
+        <div class="empty-sub">Ajusta los filtros para ver registros</div>
+      </div>
+    </td></tr>`;
+}
+
+// ─── DEPTO VIEW ───────────────────────────────────────────
+function buildDepto() {
+  const deptos = {};
+  allRows.forEach(r => {
+    const d = r.Departamento;
+    if (!deptos[d]) deptos[d] = { oc: 0, monto_ing: 0, monto_asign: 0, monto_fact: 0, unid: 0 };
+    deptos[d].oc++;
+    deptos[d].monto_ing += r.Monto_Ingresado;
+    deptos[d].monto_asign += r.Monto_Asignado;
+    deptos[d].monto_fact += r.Monto_Facturado;
+    deptos[d].unid += r.Unidades_OL;
+  });
+  const maxM = Math.max(...Object.values(deptos).map(d => d.monto_ing), 1);
+  const html = Object.entries(deptos)
+    .sort((a, b) => b[1].monto_ing - a[1].monto_ing)
+    .map(([name, v]) => `
+      <div class="depto-card">
+        <div class="depto-name">${name} <span class="pill pill-gray">${v.oc} OC</span></div>
+        <div class="depto-row"><span>Monto ingresado</span><span class="depto-val">${fmtM(v.monto_ing)}</span></div>
+        <div class="depto-row"><span>Monto asignado SAP</span><span class="depto-val">${v.monto_asign > 0 ? fmtM(v.monto_asign) : '—'}</span></div>
+        <div class="depto-row"><span>Monto facturado</span><span class="depto-val">${v.monto_fact > 0 ? fmtM(v.monto_fact) : '—'}</span></div>
+        <div class="depto-row"><span>Unidades OL</span><span class="depto-val">${fmt(v.unid)}</span></div>
+        <div class="bar"><div class="bar-fill" style="width:${Math.round(v.monto_ing / maxM * 100)}%"></div></div>
+      </div>
+    `).join('');
+  document.getElementById('depto-grid').innerHTML = html;
+}
+
+// ─── SEMANAS VIEW ─────────────────────────────────────────
+function buildSemanas() {
+  const fechas = {};
+  allRows.forEach(r => {
+    const f = r.Fecha_Despacho || 'Sin fecha';
+    if (!fechas[f]) fechas[f] = { ocs: [], deptos: new Set(), monto: 0, unid: 0 };
+    fechas[f].ocs.push(r.OC);
+    fechas[f].deptos.add(r.Departamento);
+    fechas[f].monto += r.Monto_Ingresado;
+    fechas[f].unid += r.Unidades_OL;
+  });
+
+  // Alertas
+  const vencidas = Object.entries(fechas).filter(([f]) => f !== 'Sin fecha' && f < TODAY);
+  let alertHtml = '';
+  if (vencidas.length > 0) {
+    alertHtml = `<div class="alert-banner">
+      <svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/></svg>
+      ${vencidas.length} fecha(s) de despacho ya pasada(s) con OC pendientes. Revisar estado en SAP.
+    </div>`;
+  }
+  document.getElementById('alertas-container').innerHTML = alertHtml;
+
+  const rows = Object.entries(fechas)
+    .sort((a, b) => a[0].localeCompare(b[0]))
+    .map(([fecha, v]) => {
+      const pasado = fecha !== 'Sin fecha' && fecha < TODAY;
+      const esHoy = fecha === TODAY;
+      const estado = pasado ? '<span class="pill pill-red">Fecha pasada</span>' :
+        esHoy ? '<span class="pill pill-amber">Hoy</span>' :
+        '<span class="pill pill-blue">Próximo</span>';
+      return `<tr ${pasado ? 'style="opacity:.7"' : ''}>
+        <td>${fmtDateDisplay(fecha)}</td>
+        <td>${v.ocs.length}</td>
+        <td style="font-size:11px;color:#666">${v.ocs.join(' · ')}</td>
+        <td style="font-size:11px">${[...v.deptos].join(', ')}</td>
+        <td>${fmtM(v.monto)}</td>
+        <td>${fmt(v.unid)}</td>
+        <td>${estado}</td>
+      </tr>`;
+    }).join('');
+
+  document.getElementById('semana-tbody').innerHTML = rows;
+}
+
+// ─── TABS ─────────────────────────────────────────────────
+function switchTab(id, btn) {
+  document.querySelectorAll('.sec').forEach(s => s.classList.remove('active'));
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.getElementById('sec-' + id).classList.add('active');
+  btn.classList.add('active');
+}
+
+// ─── EXPORTS ──────────────────────────────────────────────
+function exportCSV() {
+  if (!filtered.length) return;
+  const h = ['OC','Cliente','Departamento','PD','Fecha Despacho','Fecha Req','Monto Ingresado','Unidades OL','Unid Asignadas SAP','Monto Asignado SAP','Unid Facturadas','Monto Facturado','N Factura','Estado SAP','Estado OL'];
+  const rows = filtered.map(r => [r.OC,r.Cliente,r.Departamento,r.PD,r.Fecha_Despacho,r.Fecha_Req,r.Monto_Ingresado,r.Unidades_OL,r.Unid_Asignadas,r.Monto_Asignado,r.Unid_Facturadas,r.Monto_Facturado,r.Factura,r.Estado_SAP,r.Estado_OL]);
+  const csv = [h, ...rows].map(r => r.map(c => '"' + String(c || '').replace(/"/g, '""') + '"').join(',')).join('\n');
+  const blob = new Blob(['\ufeff' + csv], { type: 'text/csv;charset=utf-8' });
+  dl(blob, 'agenda_puma_cencosud_' + TODAY + '.csv');
+}
+
+function exportExcel() {
+  if (!filtered.length) return;
+  const data = filtered.map(r => ({
+    'OC': r.OC, 'Cliente': r.Cliente, 'Departamento': r.Departamento, 'PD': r.PD,
+    'Fecha Despacho': r.Fecha_Despacho, 'Fecha Req': r.Fecha_Req,
+    'Monto Ingresado': r.Monto_Ingresado, 'Unidades OL': r.Unidades_OL,
+    'Unid Asignadas SAP': r.Unid_Asignadas, 'Monto Asignado SAP': r.Monto_Asignado,
+    'Unid Facturadas': r.Unid_Facturadas, 'Monto Facturado': r.Monto_Facturado,
+    'N Factura': r.Factura, 'Estado SAP': r.Estado_SAP, 'Estado OL': r.Estado_OL
+  }));
+  const wb = XLSX.utils.book_new();
+  const ws = XLSX.utils.json_to_sheet(data);
+  ws['!cols'] = [10,14,16,10,14,12,16,12,18,18,16,18,14,12,12].map(w => ({ wch: w }));
+  XLSX.utils.book_append_sheet(wb, ws, 'Agenda');
+  XLSX.writeFile(wb, 'agenda_puma_cencosud_' + TODAY + '.xlsx');
+}
+
+function dl(blob, name) {
+  const a = document.createElement('a'); a.href = URL.createObjectURL(blob); a.download = name; a.click();
+}
+</script>
+</body>
+</html>
